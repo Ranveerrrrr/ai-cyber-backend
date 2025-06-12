@@ -153,33 +153,38 @@ app.post("/check-password", async (req, res) => {
 });
 
 // 📧 HIBP Email Breach Check
+// 📧 Email Breach Check
 app.post("/check-email", async (req, res) => {
   const email = req.body.email;
   const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
   const ua = req.headers["user-agent"];
 
   if (!email) return res.status(400).send("Missing email");
+
   logUserInput(ip, ua, "/check-email", email);
 
   try {
-    const encodedEmail = encodeURIComponent(email);
-    const response = await fetch(`https://haveibeenpwned.com/unifiedsearch/${encodedEmail}`, {
-      headers: {
-        "User-Agent": "RanveerProject/1.0"
+    const response = await fetch(
+      `https://haveibeenpwned.com/unifiedsearch/${encodeURIComponent(email)}`,
+      {
+        headers: {
+          "User-Agent": "RanveerProject/1.0", // 🧠 Required to avoid 403
+        },
       }
-    });
+    );
 
     if (!response.ok) {
-      return res.status(response.status).send("Failed to fetch breach data");
+      return res.status(response.status).send("Error from HIBP");
     }
 
-    const data = await response.json();
-    res.json(data);
+    const result = await response.json();
+    res.json(result);
   } catch (err) {
     console.error("❌ Email check error:", err.message);
     res.status(500).send("Error checking email");
   }
 });
+
 
 // 🌐 Home Page
 app.get("/", (req, res) => {
