@@ -10,6 +10,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// 🔑 API Keys
 const VT_API_KEY = "82e62a710af4abcd481965e951ccd9c585a49ad3b79e420f9e00f5fea97eb43e";
 const GOOGLE_API_KEY = "AIzaSyD1N9V3fedrSj7lZL9ylv6ZETYascbhRso";
 const FIREBASE_DB_URL = "https://cyberscan-logs-default-rtdb.firebaseio.com";
@@ -24,11 +25,9 @@ function isValidUrl(str) {
   }
 }
 
-// ✅ Log to Firebase + local logs
+// 📜 Log Input
 function logUserInput(ipRaw, ua, route, input) {
-  const ip = (ipRaw || "").split(",")[0].trim(); // Handle forwarded IPs
-
-  // ❌ Skip logging bots or health-checks
+  const ip = (ipRaw || "").split(",")[0].trim();
   if (ua && ua.includes("Go-http-client")) return;
 
   const log = {
@@ -44,14 +43,14 @@ function logUserInput(ipRaw, ua, route, input) {
     .then(() => console.log("✅ Logged to Firebase:", route))
     .catch((err) => console.error("❌ Firebase log error:", err.message));
 
-  // 📝 Local logs (optional)
+  // 📝 Local file
   const line = `[${new Date().toLocaleString()}] [${ip}] [${ua}] ${route} -> ${JSON.stringify(input)}\n`;
   fs.appendFile(path.join(__dirname, "logs.txt"), line, (err) => {
     if (err) console.error("❌ Local log error:", err.message);
   });
 }
 
-// 🔍 VirusTotal
+// 🔍 VirusTotal URL Scan
 app.post("/scan", async (req, res) => {
   const url = req.body.url;
   const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
@@ -127,7 +126,7 @@ app.post("/check-url", async (req, res) => {
   }
 });
 
-// 🔐 Password Leak Check
+// 🔐 Pwned Passwords
 app.post("/check-password", async (req, res) => {
   const password = req.body.password;
   const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
@@ -153,7 +152,36 @@ app.post("/check-password", async (req, res) => {
   }
 });
 
-// 🌐 Home route
+// 📧 HIBP Email Breach Check
+app.post("/check-email", async (req, res) => {
+  const email = req.body.email;
+  const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
+  const ua = req.headers["user-agent"];
+
+  if (!email) return res.status(400).send("Missing email");
+  logUserInput(ip, ua, "/check-email", email);
+
+  try {
+    const encodedEmail = encodeURIComponent(email);
+    const response = await fetch(`https://haveibeenpwned.com/unifiedsearch/${encodedEmail}`, {
+      headers: {
+        "User-Agent": "RanveerProject/1.0"
+      }
+    });
+
+    if (!response.ok) {
+      return res.status(response.status).send("Failed to fetch breach data");
+    }
+
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error("❌ Email check error:", err.message);
+    res.status(500).send("Error checking email");
+  }
+});
+
+// 🌐 Home Page
 app.get("/", (req, res) => {
   const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
   const ua = req.headers["user-agent"];
@@ -162,11 +190,11 @@ app.get("/", (req, res) => {
   res.send(`
     <h1>Hello!</h1>
     <p>This website is a school project coded and hosted by <strong>Ranveer</strong>.</p>
-    <p>You can scan URLs, check for malware, and test password leaks here.</p>
+    <p>You can scan URLs, check for malware, password leaks, and email breaches here.</p>
   `);
 });
 
-// 🚀 Start server
+// 🚀 Start Server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
