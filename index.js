@@ -14,18 +14,23 @@ const VT_API_KEY = "82e62a710af4abcd481965e951ccd9c585a49ad3b79e420f9e00f5fea97e
 const GOOGLE_API_KEY = "AIzaSyD1N9V3fedrSj7lZL9ylv6ZETYascbhRso";
 const FIREBASE_DB_URL = "https://cyberscan-logs-default-rtdb.firebaseio.com";
 
-// ✅ Helper: Check if a string is a valid URL
+// ✅ Validate URL
 function isValidUrl(str) {
   try {
     const url = new URL(str);
     return url.protocol === "http:" || url.protocol === "https:";
-  } catch (_) {
+  } catch {
     return false;
   }
 }
 
-// ✅ Log to Firebase (and optionally to local logs.txt)
-function logUserInput(ip, ua, route, input) {
+// ✅ Log to Firebase + local logs
+function logUserInput(ipRaw, ua, route, input) {
+  const ip = (ipRaw || "").split(",")[0].trim(); // Handle forwarded IPs
+
+  // ❌ Skip logging bots or health-checks
+  if (ua && ua.includes("Go-http-client")) return;
+
   const log = {
     timestamp: new Date().toISOString(),
     ip,
@@ -34,19 +39,19 @@ function logUserInput(ip, ua, route, input) {
     input,
   };
 
-  // 🔥 Firebase logging
+  // 🔥 Firebase
   axios.post(`${FIREBASE_DB_URL}/logs.json`, log)
-    .then(() => console.log("Logged to Firebase:", route))
-    .catch((err) => console.error("Firebase log error:", err));
+    .then(() => console.log("✅ Logged to Firebase:", route))
+    .catch((err) => console.error("❌ Firebase log error:", err.message));
 
-  // 📝 Optional local logs (comment out if you don’t need)
+  // 📝 Local logs (optional)
   const line = `[${new Date().toLocaleString()}] [${ip}] [${ua}] ${route} -> ${JSON.stringify(input)}\n`;
   fs.appendFile(path.join(__dirname, "logs.txt"), line, (err) => {
-    if (err) console.error("Local log write error:", err);
+    if (err) console.error("❌ Local log error:", err.message);
   });
 }
 
-// 🔍 VirusTotal URL scan
+// 🔍 VirusTotal
 app.post("/scan", async (req, res) => {
   const url = req.body.url;
   const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
@@ -72,22 +77,19 @@ app.post("/scan", async (req, res) => {
 
     await new Promise((r) => setTimeout(r, 4000));
 
-    const analysisRes = await fetch(
-      `https://www.virustotal.com/api/v3/analyses/${analysisId}`,
-      {
-        headers: { "x-apikey": VT_API_KEY },
-      }
-    );
+    const analysisRes = await fetch(`https://www.virustotal.com/api/v3/analyses/${analysisId}`, {
+      headers: { "x-apikey": VT_API_KEY },
+    });
 
     const data = await analysisRes.json();
     res.json(data);
   } catch (err) {
-    console.error("Scan error:", err);
+    console.error("❌ VT scan error:", err.message);
     res.status(500).send("Error scanning");
   }
 });
 
-// 🛡️ Google Safe Browsing URL Check
+// 🛡️ Google Safe Browsing
 app.post("/check-url", async (req, res) => {
   const url = req.body.url;
   const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
@@ -101,12 +103,7 @@ app.post("/check-url", async (req, res) => {
   const body = {
     client: { clientId: "cyberscan", clientVersion: "1.0" },
     threatInfo: {
-      threatTypes: [
-        "MALWARE",
-        "SOCIAL_ENGINEERING",
-        "UNWANTED_SOFTWARE",
-        "POTENTIALLY_HARMFUL_APPLICATION",
-      ],
+      threatTypes: ["MALWARE", "SOCIAL_ENGINEERING", "UNWANTED_SOFTWARE", "POTENTIALLY_HARMFUL_APPLICATION"],
       platformTypes: ["ANY_PLATFORM"],
       threatEntryTypes: ["URL"],
       threatEntries: [{ url }],
@@ -125,12 +122,12 @@ app.post("/check-url", async (req, res) => {
     const result = await response.json();
     res.json(result);
   } catch (err) {
-    console.error("URL check error:", err);
+    console.error("❌ Google URL check error:", err.message);
     res.status(500).send("Error checking URL");
   }
 });
 
-// 🔐 Password Leak Check (Pwned Passwords API)
+// 🔐 Password Leak Check
 app.post("/check-password", async (req, res) => {
   const password = req.body.password;
   const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
@@ -151,12 +148,12 @@ app.post("/check-password", async (req, res) => {
     const found = text.includes(suffix);
     res.json({ breached: found });
   } catch (err) {
-    console.error("Password check error:", err);
+    console.error("❌ Password check error:", err.message);
     res.status(500).send("Error checking password");
   }
 });
 
-// 🌐 Root Route
+// 🌐 Home route
 app.get("/", (req, res) => {
   const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
   const ua = req.headers["user-agent"];
@@ -169,7 +166,7 @@ app.get("/", (req, res) => {
   `);
 });
 
-// Start server
+// 🚀 Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
