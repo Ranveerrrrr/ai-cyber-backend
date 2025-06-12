@@ -3,6 +3,8 @@ const path = require("path");
 const express = require("express");
 const fetch = require("node-fetch");
 const cors = require("cors");
+const axios = require("axios");
+const crypto = require("crypto");
 
 const app = express();
 app.use(cors());
@@ -10,6 +12,7 @@ app.use(express.json());
 
 const VT_API_KEY = "82e62a710af4abcd481965e951ccd9c585a49ad3b79e420f9e00f5fea97eb43e";
 const GOOGLE_API_KEY = "AIzaSyD1N9V3fedrSj7lZL9ylv6ZETYascbhRso";
+const FIREBASE_DB_URL = "https://cyberscan-logs-default-rtdb.firebaseio.com";
 
 // ✅ Helper: Check if a string is a valid URL
 function isValidUrl(str) {
@@ -21,22 +24,27 @@ function isValidUrl(str) {
   }
 }
 
-// 🌐 Log everything middleware
-app.use((req, res, next) => {
-  const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
-  const ua = req.headers["user-agent"];
-  const pathAccessed = req.path;
-  const inputData = JSON.stringify(req.body);
+// ✅ Log to Firebase (and optionally to local logs.txt)
+function logUserInput(ip, ua, route, input) {
+  const log = {
+    timestamp: new Date().toISOString(),
+    ip,
+    userAgent: ua,
+    route,
+    input,
+  };
 
-  const log = `[${new Date().toLocaleString()}] [${ip}] [${ua}] ${pathAccessed} -> ${inputData}\n`;
+  // 🔥 Firebase logging
+  axios.post(`${FIREBASE_DB_URL}/logs.json`, log)
+    .then(() => console.log("Logged to Firebase:", route))
+    .catch((err) => console.error("Firebase log error:", err));
 
-  fs.appendFile(path.join(__dirname, "logs.txt"), log, (err) => {
-    if (err) console.error("Log write error:", err);
+  // 📝 Optional local logs (comment out if you don’t need)
+  const line = `[${new Date().toLocaleString()}] [${ip}] [${ua}] ${route} -> ${JSON.stringify(input)}\n`;
+  fs.appendFile(path.join(__dirname, "logs.txt"), line, (err) => {
+    if (err) console.error("Local log write error:", err);
   });
-
-  next();
-});
-
+}
 
 // 🔍 VirusTotal URL scan
 app.post("/scan", async (req, res) => {
@@ -122,7 +130,7 @@ app.post("/check-url", async (req, res) => {
   }
 });
 
-// 🔐 Password Leak Check (Using Pwned Passwords)
+// 🔐 Password Leak Check (Pwned Passwords API)
 app.post("/check-password", async (req, res) => {
   const password = req.body.password;
   const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
@@ -133,7 +141,6 @@ app.post("/check-password", async (req, res) => {
   logUserInput(ip, ua, "/check-password", password);
 
   try {
-    const crypto = require("crypto");
     const hash = crypto.createHash("sha1").update(password).digest("hex").toUpperCase();
     const prefix = hash.slice(0, 5);
     const suffix = hash.slice(5);
@@ -149,7 +156,7 @@ app.post("/check-password", async (req, res) => {
   }
 });
 
-// 🌐 Root welcome message
+// 🌐 Root Route
 app.get("/", (req, res) => {
   const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
   const ua = req.headers["user-agent"];
@@ -162,6 +169,7 @@ app.get("/", (req, res) => {
   `);
 });
 
+// Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
