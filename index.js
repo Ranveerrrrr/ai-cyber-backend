@@ -8,9 +8,21 @@ app.use(express.json());
 
 const VT_API_KEY = "82e62a710af4abcd481965e951ccd9c585a49ad3b79e420f9e00f5fea97eb43e";
 
+// ✅ Helper function to check if a URL is valid
+function isValidUrl(str) {
+  try {
+    const url = new URL(str);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch (_) {
+    return false;
+  }
+}
+
 app.post("/scan", async (req, res) => {
   const url = req.body.url;
   if (!url) return res.status(400).send("Missing URL");
+
+  if (!isValidUrl(url)) return res.status(400).send("Invalid URL");
 
   try {
     const submitRes = await fetch("https://www.virustotal.com/api/v3/urls", {
@@ -25,6 +37,7 @@ app.post("/scan", async (req, res) => {
     const submitData = await submitRes.json();
     const analysisId = submitData.data.id;
 
+    // Wait for 4 seconds
     await new Promise((r) => setTimeout(r, 4000));
 
     const analysisRes = await fetch(
