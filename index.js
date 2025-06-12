@@ -21,13 +21,22 @@ function isValidUrl(str) {
   }
 }
 
-// ✅ Helper: Log user input with IP & user-agent
-function logUserInput(ip, ua, route, input) {
-  const log = `[${new Date().toLocaleString()}] [${ip}] [${ua}] ${route} -> ${input}\n`;
+// 🌐 Log everything middleware
+app.use((req, res, next) => {
+  const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
+  const ua = req.headers["user-agent"];
+  const pathAccessed = req.path;
+  const inputData = JSON.stringify(req.body);
+
+  const log = `[${new Date().toLocaleString()}] [${ip}] [${ua}] ${pathAccessed} -> ${inputData}\n`;
+
   fs.appendFile(path.join(__dirname, "logs.txt"), log, (err) => {
     if (err) console.error("Log write error:", err);
   });
-}
+
+  next();
+});
+
 
 // 🔍 VirusTotal URL scan
 app.post("/scan", async (req, res) => {
