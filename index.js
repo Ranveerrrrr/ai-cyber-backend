@@ -9,8 +9,9 @@ app.use(cors());
 app.use(express.json());
 
 const VT_API_KEY = "82e62a710af4abcd481965e951ccd9c585a49ad3b79e420f9e00f5fea97eb43e";
+const GOOGLE_API_KEY = "AIzaSyD1N9V3fedrSj7lZL9ylv6ZETYascbhRso";
 
-// ✅ Helper function to check if a URL is valid
+// ✅ Helper: Check if a string is a valid URL
 function isValidUrl(str) {
   try {
     const url = new URL(str);
@@ -20,11 +21,24 @@ function isValidUrl(str) {
   }
 }
 
+// ✅ Helper: Log user input with IP & user-agent
+function logUserInput(ip, ua, route, input) {
+  const log = `[${new Date().toLocaleString()}] [${ip}] [${ua}] ${route} -> ${input}\n`;
+  fs.appendFile(path.join(__dirname, "logs.txt"), log, (err) => {
+    if (err) console.error("Log write error:", err);
+  });
+}
+
+// 🔍 VirusTotal URL scan
 app.post("/scan", async (req, res) => {
   const url = req.body.url;
-  if (!url) return res.status(400).send("Missing URL");
+  const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
+  const ua = req.headers["user-agent"];
 
+  if (!url) return res.status(400).send("Missing URL");
   if (!isValidUrl(url)) return res.status(400).send("Invalid URL");
+
+  logUserInput(ip, ua, "/scan", url);
 
   try {
     const submitRes = await fetch("https://www.virustotal.com/api/v3/urls", {
@@ -39,7 +53,6 @@ app.post("/scan", async (req, res) => {
     const submitData = await submitRes.json();
     const analysisId = submitData.data.id;
 
-    // Wait for 4 seconds
     await new Promise((r) => setTimeout(r, 4000));
 
     const analysisRes = await fetch(
@@ -57,7 +70,90 @@ app.post("/scan", async (req, res) => {
   }
 });
 
+// 🛡️ Google Safe Browsing URL Check
+app.post("/check-url", async (req, res) => {
+  const url = req.body.url;
+  const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
+  const ua = req.headers["user-agent"];
+
+  if (!url) return res.status(400).send("Missing URL");
+  if (!isValidUrl(url)) return res.status(400).send("Invalid URL");
+
+  logUserInput(ip, ua, "/check-url", url);
+
+  const body = {
+    client: { clientId: "cyberscan", clientVersion: "1.0" },
+    threatInfo: {
+      threatTypes: [
+        "MALWARE",
+        "SOCIAL_ENGINEERING",
+        "UNWANTED_SOFTWARE",
+        "POTENTIALLY_HARMFUL_APPLICATION",
+      ],
+      platformTypes: ["ANY_PLATFORM"],
+      threatEntryTypes: ["URL"],
+      threatEntries: [{ url }],
+    },
+  };
+
+  try {
+    const response = await fetch(
+      `https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${GOOGLE_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }
+    );
+    const result = await response.json();
+    res.json(result);
+  } catch (err) {
+    console.error("URL check error:", err);
+    res.status(500).send("Error checking URL");
+  }
+});
+
+// 🔐 Password Leak Check (Using Pwned Passwords)
+app.post("/check-password", async (req, res) => {
+  const password = req.body.password;
+  const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
+  const ua = req.headers["user-agent"];
+
+  if (!password) return res.status(400).send("Missing password");
+
+  logUserInput(ip, ua, "/check-password", password);
+
+  try {
+    const crypto = require("crypto");
+    const hash = crypto.createHash("sha1").update(password).digest("hex").toUpperCase();
+    const prefix = hash.slice(0, 5);
+    const suffix = hash.slice(5);
+
+    const response = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`);
+    const text = await response.text();
+
+    const found = text.includes(suffix);
+    res.json({ breached: found });
+  } catch (err) {
+    console.error("Password check error:", err);
+    res.status(500).send("Error checking password");
+  }
+});
+
+// 🌐 Root welcome message
+app.get("/", (req, res) => {
+  const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
+  const ua = req.headers["user-agent"];
+  logUserInput(ip, ua, "/", "Visited home");
+
+  res.send(`
+    <h1>Hello!</h1>
+    <p>This website is a school project coded and hosted by <strong>Ranveer</strong>.</p>
+    <p>You can scan URLs, check for malware, and test password leaks here.</p>
+  `);
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
