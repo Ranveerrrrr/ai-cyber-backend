@@ -164,25 +164,33 @@ app.post("/check-email", async (req, res) => {
   logUserInput(ip, ua, "/check-email", email);
 
   try {
-    const response = await fetch(`https://haveibeenpwned.com/unifiedsearch/${encodeURIComponent(email)}`, {
-  headers: {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.5",
-    "Referer": "https://haveibeenpwned.com/",
-    "Sec-Fetch-Mode": "navigate",
-    "Sec-Fetch-Site": "same-origin",
-    "Sec-Fetch-User": "?1",
-    "Upgrade-Insecure-Requests": "1"
-  }
-});
-    });
+    const response = await fetch(
+      `https://haveibeenpwned.com/unifiedsearch/${encodeURIComponent(email)}`,
+      {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
+          "Accept":
+            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Accept-Language": "en-US,en;q=0.5",
+          "Referer": "https://haveibeenpwned.com/",
+          "Sec-Fetch-Mode": "navigate",
+          "Sec-Fetch-Site": "same-origin",
+          "Sec-Fetch-User": "?1",
+          "Upgrade-Insecure-Requests": "1",
+        },
+      }
+    );
 
     const text = await response.text();
+
     if (response.status === 404) {
-      return res.json({ Breaches: [] }); // No breaches found
+      // No breaches for this email
+      return res.json({ Breaches: [] });
     }
+
     if (!response.ok) {
+      console.error("❌ HIBP error:", response.status, text);
       return res.status(response.status).send("HIBP request failed");
     }
 
