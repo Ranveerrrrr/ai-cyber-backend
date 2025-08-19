@@ -160,7 +160,7 @@ app.post("/check-email", async (req, res) => {
   const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
   const ua = req.headers["user-agent"];
 
-  if (!email) return res.status(400).send("Missing email");
+  if (!email) return res.status(400).json({ error: "Missing email" });
   logUserInput(ip, ua, "/check-email", email);
 
   try {
@@ -185,23 +185,29 @@ app.post("/check-email", async (req, res) => {
     const text = await response.text();
 
     if (response.status === 404) {
-      // No breaches for this email
-      return res.json({ Breaches: [] });
+      return res.json({ Breaches: [] }); // No breaches found
     }
 
     if (!response.ok) {
-      console.error("❌ HIBP error:", response.status, text);
-      return res.status(response.status).send("HIBP request failed");
+      console.error("❌ HIBP error:", response.status, text.slice(0, 200));
+      return res.status(response.status).json({ error: "HIBP request failed" });
     }
 
-    const data = JSON.parse(text);
+    // try parsing JSON safely
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      console.error("❌ JSON parse error:", e.message);
+      return res.status(500).json({ error: "Failed to parse HIBP response" });
+    }
+
     res.json(data);
   } catch (err) {
     console.error("❌ Email check error:", err.message);
-    res.status(500).send("Error checking email");
+    res.status(500).json({ error: "Error checking email" });
   }
 });
-
 // 🌐 Home Page
 app.get("/", (req, res) => {
   const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
