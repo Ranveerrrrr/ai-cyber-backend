@@ -160,7 +160,7 @@ app.post("/check-email", async (req, res) => {
   const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
   const ua = req.headers["user-agent"];
 
-  if (!email) return res.status(400).json({ error: "Missing email" });
+  if (!email) return res.status(400).send("Missing email");
   logUserInput(ip, ua, "/check-email", email);
 
   try {
@@ -173,11 +173,7 @@ app.post("/check-email", async (req, res) => {
           "Accept":
             "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
           "Accept-Language": "en-US,en;q=0.5",
-          "Referer": "https://haveibeenpwned.com/",
-          "Sec-Fetch-Mode": "navigate",
-          "Sec-Fetch-Site": "same-origin",
-          "Sec-Fetch-User": "?1",
-          "Upgrade-Insecure-Requests": "1",
+          "Referer": "https://haveibeenpwned.com/"
         },
       }
     );
@@ -185,29 +181,31 @@ app.post("/check-email", async (req, res) => {
     const text = await response.text();
 
     if (response.status === 404) {
-      return res.json({ Breaches: [] }); // No breaches found
+      // No breaches for this email
+      return res.json({ Breaches: [] });
     }
 
     if (!response.ok) {
-      console.error("❌ HIBP error:", response.status, text.slice(0, 200));
-      return res.status(response.status).json({ error: "HIBP request failed" });
+      console.error("❌ HIBP error:", response.status, text);
+      return res.status(response.status).send("HIBP request failed");
     }
 
-    // try parsing JSON safely
+    // Try parsing JSON safely
     let data;
     try {
       data = JSON.parse(text);
-    } catch (e) {
-      console.error("❌ JSON parse error:", e.message);
-      return res.status(500).json({ error: "Failed to parse HIBP response" });
+    } catch (err) {
+      console.error("❌ Failed to parse HIBP response as JSON:", text);
+      return res.status(500).send("Failed to parse HIBP response");
     }
 
     res.json(data);
   } catch (err) {
     console.error("❌ Email check error:", err.message);
-    res.status(500).json({ error: "Error checking email" });
+    res.status(500).send("Error checking email");
   }
 });
+
 // 🌐 Home Page
 app.get("/", (req, res) => {
   const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
