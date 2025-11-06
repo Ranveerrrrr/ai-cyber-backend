@@ -206,6 +206,27 @@ app.post("/check-email", async (req, res) => {
   }
 });
 
+// 🌍 Get user's IP info (via ip-api)
+app.get("/ipinfo", async (req, res) => {
+  const ip =
+    req.headers["x-forwarded-for"]?.split(",")[0].trim() ||
+    req.socket.remoteAddress;
+  const ua = req.headers["user-agent"];
+
+  logUserInput(ip, ua, "/ipinfo", "IP lookup");
+
+  try {
+    // Use ip-api to fetch IP info for the requester's IP
+    const response = await fetch(`http://ip-api.com/json/${ip}`);
+    const data = await response.json();
+
+    res.json(data);
+  } catch (err) {
+    console.error("❌ IP info error:", err.message);
+    res.status(500).json({ status: "fail", error: err.message });
+  }
+});
+
 // 🌐 Home Page
 app.get("/", (req, res) => {
   const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
