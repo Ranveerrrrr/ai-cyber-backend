@@ -227,6 +227,31 @@ app.get("/ipinfo", async (req, res) => {
   }
 });
 
+// 🔁 Redirect Checker Proxy
+app.get("/redirect-check", async (req, res) => {
+  const { url, timeout = 5, maxhops = 10, meta = 1 } = req.query;
+  const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
+  const ua = req.headers["user-agent"];
+
+  if (!url) return res.status(400).send("Missing URL");
+  if (!isValidUrl(url)) return res.status(400).send("Invalid URL");
+
+  logUserInput(ip, ua, "/redirect-check", url);
+
+  const apiUrl = `https://api.redirect-checker.net/?url=${encodeURIComponent(
+    url
+  )}&timeout=${timeout}&maxhops=${maxhops}&meta-refresh=${meta}&format=json`;
+
+  try {
+    const response = await fetch(apiUrl);
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error("❌ Redirect checker error:", err.message);
+    res.status(500).json({ error: "Failed to fetch redirect chain" });
+  }
+});
+
 // 🌐 Home Page
 app.get("/", (req, res) => {
   const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
