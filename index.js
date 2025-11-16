@@ -11,7 +11,7 @@ app.use(cors());
 app.use(express.json());
 
 // 🔑 API Keys
-const VT_API_KEY = "82e62a710af4abcd481965e951ccd9c585a49ad3b79e420f9e00f5fea97eb43e";
+const VT_API_KEY = "76d7e13aa9b40e62cd4b096a09a1de19ba6bb70f0e158dd558dfe44c86ab08d0";
 const GOOGLE_API_KEY = "AIzaSyD1N9V3fedrSj7lZL9ylv6ZETYascbhRso";
 const FIREBASE_DB_URL = "https://cyberscan-logs-default-rtdb.firebaseio.com";
 
