@@ -13,7 +13,8 @@ app.use(express.json());
 // 🔑 API Keys
 //const VT_API_KEY = "76d7e13aa9b40e62cd4b096a09a1de19ba6bb70f0e158dd558dfe44c86ab08d0";
 const VT_API_KEY = "6380ce76948f6140cab6a5aaec5f6c017ca1b09adcface2b36d0b8df6a57f639";
-const GOOGLE_API_KEY = "AIzaSyD1N9V3fedrSj7lZL9ylv6ZETYascbhRso";
+//const GOOGLE_API_KEY = "AIzaSyD1N9V3fedrSj7lZL9ylv6ZETYascbhRso";
+const GOOGLE_API_KEY = "AIzaSyAuJ5AMiQkrhFsUsjLSrCW79SGz5Vn0yFI";
 const FIREBASE_DB_URL = "https://cyberscan-logs-default-rtdb.firebaseio.com";
 
 // ✅ Validate URL
