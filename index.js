@@ -42,9 +42,11 @@ function logUserInput(ipRaw, ua, route, input) {
   };
 
   // 🔥 Firebase
-  axios.post(`${FIREBASE_DB_URL}/logs.json`, log)
+  const safeIp = ip.replace(/[.#$/\[\]]/g, "_"); // Firebase key-safe
+  axios.post(`${FIREBASE_DB_URL}/logs/${safeIp}.json`, log)
     .then(() => console.log("✅ Logged to Firebase:", route))
     .catch((err) => console.error("❌ Firebase log error:", err.message));
+
 
   // 📝 Local file
   const line = `[${new Date().toLocaleString()}] [${ip}] [${ua}] ${route} -> ${JSON.stringify(input)}\n`;
