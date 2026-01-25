@@ -16,6 +16,7 @@ const VT_API_KEY = "6380ce76948f6140cab6a5aaec5f6c017ca1b09adcface2b36d0b8df6a57
 //const GOOGLE_API_KEY = "AIzaSyD1N9V3fedrSj7lZL9ylv6ZETYascbhRso";
 const GOOGLE_API_KEY = "AIzaSyAuJ5AMiQkrhFsUsjLSrCW79SGz5Vn0yFI";
 const FIREBASE_DB_URL = "https://cyberscan-logs-default-rtdb.firebaseio.com";
+const GOOGLE_API_KEYy = "AIzaSyA1ODwwJ1Oi9RFNiN1Vku0_T6iRF3pEZqA";
 
 // ✅ Validate URL
 function isValidUrl(str) {
@@ -345,7 +346,7 @@ app.post("/api/check-url", async (req, res) => {
 
   try {
     const response = await fetch(
-      `https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${GOOGLE_API_KEY}`,
+      `https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${GOOGLE_API_KEYy}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
