@@ -272,3 +272,91 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
+
+//////
+// 🔍 VirusTotal URL Scan
+app.post("/api/scan-vt", async (req, res) => {
+  const { url } = req.body;
+  const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
+  const ua = req.headers["user-agent"];
+
+  if (!url) return res.status(400).json({ error: "Missing URL" });
+  if (!isValidUrl(url)) return res.status(400).json({ error: "Invalid URL" });
+
+  logUserInput(ip, ua, "/api/scan-vt", url);
+
+  try {
+    const submitRes = await fetch("https://www.virustotal.com/api/v3/urls", {
+      method: "POST",
+      headers: {
+        "x-apikey": VT_API_KEY,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: `url=${encodeURIComponent(url)}`,
+    });
+
+    const submitData = await submitRes.json();
+    if (!submitData?.data?.id) {
+      return res.status(500).json({ error: "Failed to submit to VirusTotal" });
+    }
+
+    const analysisId = submitData.data.id;
+
+    await new Promise((r) => setTimeout(r, 4000));
+
+    const analysisRes = await fetch(
+      `https://www.virustotal.com/api/v3/analyses/${analysisId}`,
+      { headers: { "x-apikey": VT_API_KEY } }
+    );
+
+    const data = await analysisRes.json();
+    res.json(data);
+  } catch (err) {
+    console.error("❌ VT scan error:", err.message);
+    res.status(500).json({ error: "VirusTotal scan failed" });
+  }
+});
+
+// 🛡️ Google Safe Browsing (Proxy)
+app.post("/api/check-url", async (req, res) => {
+  const { url } = req.body;
+  const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
+  const ua = req.headers["user-agent"];
+
+  if (!url) return res.status(400).json({ error: "Missing URL" });
+  if (!isValidUrl(url)) return res.status(400).json({ error: "Invalid URL" });
+
+  logUserInput(ip, ua, "/api/check-url", url);
+
+  const body = {
+    client: { clientId: "raina", clientVersion: "1.0" },
+    threatInfo: {
+      threatTypes: [
+        "MALWARE",
+        "SOCIAL_ENGINEERING",
+        "UNWANTED_SOFTWARE",
+        "POTENTIALLY_HARMFUL_APPLICATION",
+      ],
+      platformTypes: ["ANY_PLATFORM"],
+      threatEntryTypes: ["URL"],
+      threatEntries: [{ url }],
+    },
+  };
+
+  try {
+    const response = await fetch(
+      `https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${GOOGLE_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }
+    );
+
+    const result = await response.json();
+    res.json(result);
+  } catch (err) {
+    console.error("❌ Google URL check error:", err.message);
+    res.status(500).json({ error: "Google Safe Browsing failed" });
+  }
+});
