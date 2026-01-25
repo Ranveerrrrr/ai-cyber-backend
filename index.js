@@ -354,6 +354,8 @@ app.post("/api/check-url", async (req, res) => {
     );
 
     const result = await response.json();
+    console.log("🧪 Google response:", JSON.stringify(result, null, 2));
+
     res.json(result);
   } catch (err) {
     console.error("❌ Google URL check error:", err.message);
